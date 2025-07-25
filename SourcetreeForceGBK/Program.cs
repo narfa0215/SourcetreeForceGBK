@@ -10,8 +10,22 @@ namespace SourcetreeForceGBK
     {
         public static void Main(string[] args)
         {
-            Console.WriteLine("请输入需要打补丁的SourceTree.Api.UI.Wpf.dll的路径(可拖入dll文件)：");
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string targetDir = Path.Combine(baseDir, "SourceTree");
+            string targetFileName = "SourceTree.Api.UI.Wpf.dll";
+            string targetFilePath = null;
+            if (Directory.Exists(targetDir))
+            {
+                string[] foundFiles = Directory.GetFiles(targetDir, targetFileName, SearchOption.AllDirectories);
+                foreach (string file in foundFiles)
+                {
+                    targetFilePath = file;
+                    break;
+                }
+            }
+            Console.WriteLine($"请输入需要打补丁的SourceTree.Api.UI.Wpf.dll的路径(可拖入dll文件)(默认：{targetFilePath}，回车使用默认)：");
             var fileName = Console.ReadLine();
+            fileName = string.IsNullOrWhiteSpace(fileName) ? targetFilePath : fileName;
             // 加载目标程序集（可以是任何 .exe 或 .dll 文件）
             var module = ModuleDefMD.Load(fileName);  // 目标程序集
             var processType = module.Types.First(t => "SourceTree.Utils.RepoProcess".Equals(t.FullName)); // 替换成目标类名
