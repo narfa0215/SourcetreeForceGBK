@@ -42,7 +42,19 @@ namespace SourcetreeForceGBK
                 loadFileName += ".bak";
             }
             // 加载目标程序集（可以是任何 .exe 或 .dll 文件）
-            var module = ModuleDefMD.Load(loadFileName);  // 目标程序集
+            ModuleDefMD module = null;  // 目标程序集
+            try
+            {
+                module = ModuleDefMD.Load(loadFileName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("文件似乎被占用，请关闭Sourcetree再运行，错误信息如下：");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+                Console.ReadKey();
+                return;
+            }
             var processType = module.Types.First(t => "SourceTree.Utils.RepoProcess".Equals(t.FullName)); // 替换成目标类名
             var method = processType.Methods.First(m => "System.Void SourceTree.Utils.RepoProcess::InternalLaunch(System.Boolean,System.Diagnostics.ProcessPriorityClass)".Equals(m.FullName));
             var instructions = method.Body.Instructions;
@@ -150,7 +162,18 @@ namespace SourcetreeForceGBK
                 File.Move(fileName, fileName + ".bak");
             }
             // 保存修改后的程序集
-            module.Write(fileName);  // 保存为新的文件
+            try
+            {
+                module.Write(fileName);  // 保存为新的文件
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("文件似乎被占用，请关闭Sourcetree再运行，错误信息如下：");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+                Console.ReadKey();
+                return;
+            }
             Console.WriteLine("补丁已成功打上！");
             Console.ReadKey();
         }
