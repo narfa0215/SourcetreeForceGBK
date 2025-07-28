@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 
@@ -14,13 +16,30 @@ namespace SourcetreeForceGBK
             string targetDir = Path.Combine(baseDir, "SourceTree");
             string targetFileName = "SourceTree.Api.UI.Wpf.dll";
             string targetFilePath = null;
+            Version targetVersion = null;
+            Regex regex = new Regex(@"app-(\d+\.\d+\.\d+)", RegexOptions.Compiled);
             if (Directory.Exists(targetDir))
             {
                 string[] foundFiles = Directory.GetFiles(targetDir, targetFileName, SearchOption.AllDirectories);
                 foreach (string file in foundFiles)
                 {
-                    targetFilePath = file;
-                    break;
+                    Match match = regex.Match(file);
+                    if (match.Success)
+                    {
+                        if (targetVersion == null)
+                        {
+                            targetVersion = new Version(match.Groups[1].Value);
+                            targetFilePath = file;
+                        }
+                        else
+                        {
+                            if (new Version(match.Groups[1].Value) > targetVersion)
+                            {
+                                targetVersion = new Version(match.Groups[1].Value);
+                                targetFilePath = file;
+                            }
+                        }
+                    }
                 }
             }
             Console.WriteLine($"请输入需要打补丁的SourceTree.Api.UI.Wpf.dll的路径(可拖入dll文件)(默认：{targetFilePath}，回车使用默认)：");
@@ -40,6 +59,33 @@ namespace SourcetreeForceGBK
             if (File.Exists(fileName + ".bak"))
             {
                 loadFileName += ".bak";
+            }
+
+            try
+            {
+                // 加载目标程序集（可以是任何 .exe 或 .dll 文件）
+                ModuleDefMD testModule = ModuleDefMD.Load(fileName);  // 目标程序集
+                var testProcessType = testModule.Types.First(t => "SourceTree.Utils.RepoProcess".Equals(t.FullName)); // 替换成目标类名
+                var testMethod = testProcessType.Methods.First(m => "System.Void SourceTree.Utils.RepoProcess::InternalLaunch(System.Boolean,System.Diagnostics.ProcessPriorityClass)".Equals(m.FullName));
+                var testInstructions = testMethod.Body.Instructions;
+
+                var testIsPatch1 = testInstructions.Any(i => OpCodes.Ldstr.Equals(i.OpCode) && " -- ".Equals(i.Operand));
+                var testIsPatch2 = testInstructions.Any(i => OpCodes.Ldstr.Equals(i.OpCode) && ("APP.ini".Equals(i.Operand) || ".project".Equals(i.Operand)));
+
+                if (testIsPatch1 && testIsPatch2)
+                {
+                    Console.WriteLine("已打完补丁，不用重复打补丁！");
+                    Console.ReadKey();
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("文件似乎被占用，请关闭Sourcetree再运行，错误信息如下：");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+                Console.ReadKey();
+                return;
             }
             // 加载目标程序集（可以是任何 .exe 或 .dll 文件）
             ModuleDefMD module = null;  // 目标程序集
